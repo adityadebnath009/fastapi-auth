@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 
 from database.connection import Base
 
@@ -16,6 +16,9 @@ class User(Base):
     provider = Column(String(50), nullable=False, default="local")
 
     provider_id = Column(String(255), nullable=True)
+
+
+    is_verified = Column(Boolean, default=False)
 
 
 

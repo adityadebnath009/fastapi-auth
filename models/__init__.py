@@ -1,2 +1,3 @@
 from models.user_model import User
 from models.refreshToken import RefreshToken
+from models.email_verification_model import EmailVerificationToken

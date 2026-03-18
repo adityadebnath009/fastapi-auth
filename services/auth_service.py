@@ -1,12 +1,13 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
+from authlib.jose import jwt
 from fastapi import HTTPException, status
 
-
+from core.settings import settings
 from repository.user_repository import create_user, get_user_by_email, save_refresh_token, get_refresh_token, \
     revoke_refresh_token, get_active_refresh_tokens_for_user
 from utils.hashing import hash_password, verify_password
-from utils.token import create_access_token, create_refresh_token, decode_token, decode_refresh_token
+from utils.token import create_access_token, create_refresh_token, decode_token, decode_refresh_token, ACCESS_SECRET_KEY
 
 
 def register_user(db,email,password):
@@ -102,3 +103,10 @@ def renew_access_token(db, refresh_token: str):
 
 
 
+def create_email_verification_token(user_id: int):
+    payload = {
+        "sub": str(user_id),
+        "type": "email_verification",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24)
+    }
+    return jwt.encode(payload, settings.email_secret_key, algorithm="HS256")
