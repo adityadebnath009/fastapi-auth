@@ -15,3 +15,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    provider: str
+    provider_id: str | None = None
+
+
+

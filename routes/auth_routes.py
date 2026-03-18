@@ -6,12 +6,14 @@ from fastapi.params import Depends, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database.dependencies import get_db
-from repository.user_repository import revoke_refresh_token
+from repository.user_repository import revoke_refresh_token, get_active_refresh_tokens_for_user
 from schemas.RefreshTokenRequest import RefreshTokenRequest
 from services.auth_service import register_user, login_user, renew_access_token
 from utils.auth_dependency import get_current_user
 
 from schemas.user_schemas import UserCreate
+from utils.hashing import verify_password
+from utils.token import decode_refresh_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -34,7 +36,7 @@ def login(response: Response ,form_data: OAuth2PasswordRequestForm = Depends(), 
         key="refresh_token",
         value=result["refresh_token"],
         httponly=True,  # ← JS cannot access
-        secure=True,  # ← only sent over HTTPS
+        secure=False,  # ← only sent over HTTPS
         samesite="lax",  # ← CSRF protection
         max_age=7 * 24 * 60 * 60  # 7 days in seconds
     )
@@ -66,16 +68,25 @@ def refresh(response: Response, refresh_token:str = Cookie(default=None), db: Se
 
 
 @router.post("/logout")
-def logout(request: Request ,response:Response ,refresh_token:str = Cookie(default=None),
+def logout(response:Response ,refresh_token:str = Cookie(default=None),
 
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    refresh_token = request.cookies.get("refresh_token")
-
     if refresh_token:
-        revoke_refresh_token(db, refresh_token)
+        payload = decode_refresh_token(refresh_token)
+
+        if payload is not None:
+            user_id = payload.get("sub")
+
+            if user_id is not None:
+                token_rows = get_active_refresh_tokens_for_user(db, int(user_id))
+
+                for token_row in token_rows:
+                    if verify_password(refresh_token, token_row.token):
+                        revoke_refresh_token(db, token_row)
+                        break
 
     response.delete_cookie("refresh_token")
-
     return {"message": "Logged out successfully"}
+

@@ -4,12 +4,14 @@ from fastapi import HTTPException, status
 
 
 from repository.user_repository import create_user, get_user_by_email, save_refresh_token, get_refresh_token, \
-    revoke_refresh_token
+    revoke_refresh_token, get_active_refresh_tokens_for_user
 from utils.hashing import hash_password, verify_password
-from utils.token import create_access_token, create_refresh_token, decode_token
+from utils.token import create_access_token, create_refresh_token, decode_token, decode_refresh_token
 
 
 def register_user(db,email,password):
+
+    # Check the user already exist or not
     existing_user = get_user_by_email(db, email)
 
     if existing_user:
@@ -17,9 +19,10 @@ def register_user(db,email,password):
             status_code=400,
             detail="User Already Exists"
         )
-
+    # Never store raw hashed password in DB
     hashed = hash_password(password)
 
+    #Save the user in the Database
     user = create_user(db, email, hashed)
 
     return user
@@ -43,8 +46,8 @@ def login_user(db, email, password):
     access_token = create_access_token({"sub":str(user.id)})
     refresh_token = create_refresh_token({"sub" : str(user.id)})
 
-    #
-    save_refresh_token(db, user.id, refresh_token)
+    hashed_refresh_token = hash_password(refresh_token)
+    save_refresh_token(db, user.id, hashed_refresh_token)
 
     return {
         "access_token" : access_token,
@@ -55,44 +58,47 @@ def login_user(db, email, password):
 
 
 def renew_access_token(db, refresh_token: str):
-    playload = decode_token(refresh_token)
+    payload = decode_refresh_token(refresh_token)
 
 
 
-    if playload is None:
+    if payload is None:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+    token_rows = get_active_refresh_tokens_for_user(db, int(user_id))
 
-    db_refresh_token = get_refresh_token(db, refresh_token)
+    matched_token = None
+    for token_row in token_rows:
+        if verify_password(refresh_token, token_row.token):
+            matched_token = token_row
+            break
 
-    if db_refresh_token.revoked:
+    if matched_token is None:
+        raise HTTPException(status_code=401, detail="Refresh token revoked or not found")
+
+    if matched_token.revoked:
         raise HTTPException(status_code=401, detail="Refresh token revoked or reused")
 
-    if  db_refresh_token is None or db_refresh_token.revoked:
-        raise HTTPException(status_code=401, detail="Refresh token revoked")
-
-    if db_refresh_token.expires_at < datetime.now(timezone.utc):
+    if matched_token.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
-
-    user_id = playload.get("sub")
-
-    revoke_refresh_token(db, refresh_token)
-
-
+    revoke_refresh_token(db, matched_token)
 
     new_access_token = create_access_token({"sub": str(user_id)})
     new_refresh_token = create_refresh_token({"sub": str(user_id)})
 
-    save_refresh_token(db, user_id, new_refresh_token)
+    hashed_new_refresh_token = hash_password(new_refresh_token)
+    save_refresh_token(db, int(user_id), hashed_new_refresh_token)
 
-    return {"access_token": new_access_token,
-            "refresh_token": new_refresh_token,
-            "token_type": "bearer"}
-
-
-
+    return {
+        "access_token": new_access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer",
+    }
 
 
 

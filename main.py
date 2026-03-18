@@ -1,35 +1,33 @@
-from fastapi import FastAPI
+import os
 
+from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from database.connection import engine, Base
 from routes.auth_routes import router as auth_routes
 from routes.user_router import router as user_routes
+from routes.oauth_routes import router as oauth_routes
+
 app = FastAPI()
 
 app.include_router(auth_routes)
 app.include_router(user_routes)
-Base.metadata.create_all(bind=engine) #the server starts creating tables automatically
+app.include_router(oauth_routes)
 
-posts: list[dict] = [
-    {
-        "id": 1,
-        "author": "Corey Schafer",
-        "title": "FastAPI is Awesome",
-        "content": "This framework is really easy to use and super fast.",
-        "date_posted": "April 20, 2025",
-    },
-    {
-        "id": 2,
-        "author": "Jane Doe",
-        "title": "Python is Great for Web Development",
-        "content": "Python is a great language for web development, and FastAPI makes it even better.",
-        "date_posted": "April 21, 2025",
-    },
-]
+Base.metadata.create_all(bind=engine)
+app.add_middleware(
+    SessionMiddleware, #type: ignore
+    secret_key=os.getenv("SECRET_KEY"),
+)
+app.add_middleware(
+    CORSMiddleware, #type: ignore
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def home():
     return {"Hello"," World"}
 
-@app.get("/api/posts")
-def get_posts():
-    return posts

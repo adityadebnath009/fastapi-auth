@@ -11,7 +11,11 @@ class User(Base):
 
     email = Column(String(255), unique=True, nullable=False)
 
-    password = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=True)
+
+    provider = Column(String(50), nullable=False, default="local")
+
+    provider_id = Column(String(255), nullable=True)
 
 
 

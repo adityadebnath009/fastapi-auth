@@ -6,6 +6,8 @@ from models.refreshToken import RefreshToken
 from models.user_model import User
 
 
+# Repositories ---> Takes the data and talk to Database
+
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
 
@@ -28,7 +30,8 @@ def save_refresh_token(db: Session, user_id: int, token: str):
     refresh_token = RefreshToken(
         token = token,
         user_id = user_id,
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7),
+        revoked=False
 
     )
 
@@ -36,13 +39,20 @@ def save_refresh_token(db: Session, user_id: int, token: str):
     db.commit()
     return refresh_token
 
-def get_refresh_token(db: Session,  token: str):
-    return db.query(RefreshToken).filter(RefreshToken.token==token).first()
 
-def revoke_refresh_token(db: Session, token: str):
-    token = get_refresh_token(db, token)
-    if token:
-        RefreshToken.token = True
-        db.commit()
+def revoke_refresh_token(db: Session, refreshToken: RefreshToken):
+    refreshToken.revoked = True
+    db.commit()
+    db.refresh(refreshToken)
 
 
+
+def get_active_refresh_tokens_for_user(db: Session, user_id: int):
+    return (
+        db.query(RefreshToken)
+        .filter(
+            RefreshToken.user_id == user_id,
+            RefreshToken.revoked == False,
+        )
+        .all()
+    )
