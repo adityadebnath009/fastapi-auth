@@ -572,16 +572,21 @@ async function handleLogin() {
 
 // ── OAuth ──
 function oauthLogin(provider) {
-  window.location.href = `${API}/auth/${provider}/login`;
+  const redirectTo = window.location.href;
+  const params = new URLSearchParams({ redirect_to: redirectTo });
+  window.location.href = `${API}/auth/${provider}/login?${params.toString()}`;
 }
 
 // ── Handle OAuth callback (access_token in URL) ──
 function checkOAuthCallback() {
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('access_token');
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get('access_token');
   if (token) {
     accessToken = token;
-    window.history.replaceState({}, '', window.location.pathname);
+    url.searchParams.delete('access_token');
+    const nextQuery = url.searchParams.toString();
+    const nextUrl = `${url.pathname}${nextQuery ? `?${nextQuery}` : ''}${url.hash}`;
+    window.history.replaceState({}, '', nextUrl);
     loadDashboard().then(() => showPage('dashboard'));
   }
 }

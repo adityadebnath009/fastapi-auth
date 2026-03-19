@@ -4,10 +4,9 @@ from authlib.jose import jwt
 from fastapi import HTTPException, status
 
 from core.settings import settings
-from repository.user_repository import create_user, get_user_by_email, save_refresh_token, get_refresh_token, \
-    revoke_refresh_token, get_active_refresh_tokens_for_user
+from repository.user_repository import create_user, get_user_by_email, save_refresh_token, revoke_refresh_token, get_active_refresh_tokens_for_user
 from utils.hashing import hash_password, verify_password
-from utils.token import create_access_token, create_refresh_token, decode_token, decode_refresh_token, ACCESS_SECRET_KEY
+from utils.token import create_access_token, create_refresh_token, decode_token, decode_refresh_token, decode_email_token
 
 
 def register_user(db,email,password):
@@ -42,6 +41,11 @@ def login_user(db, email, password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
+        )
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified. Please check your email for verification link."
         )
 
     access_token = create_access_token({"sub":str(user.id)})
@@ -110,3 +114,61 @@ def create_email_verification_token(user_id: int):
         "exp": datetime.now(timezone.utc) + timedelta(hours=24)
     }
     return jwt.encode(payload, settings.email_secret_key, algorithm="HS256")
+
+
+def verify_email_token(db, token: str):
+    """
+    Verify email token using hybrid approach:
+    1. Decode JWT (checks signature + expiry)
+    2. Check DB for token validity (not used, not expired)
+    3. Mark token as used
+    4. Update user's is_verified flag
+    """
+    from models.email_verification_model import EmailVerificationToken
+
+    # Step 1: Decode JWT using EMAIL_SECRET_KEY
+    payload = decode_email_token(token)  # ← Changed from decode_refresh_token
+
+    if payload is None or payload.get("type") != "email_verification":
+        raise HTTPException(400, "Invalid or expired verification token")
+
+    user_id = int(payload.get("sub"))
+
+    # Step 2: Find matching token in DB (that hasn't been used)
+    token_rows = db.query(EmailVerificationToken).filter(
+        EmailVerificationToken.user_id == user_id,
+        EmailVerificationToken.used == False,
+        EmailVerificationToken.expires_at > datetime.now(timezone.utc)
+    ).all()
+
+    matched_token = None
+    for token_row in token_rows:
+        if verify_password(token, token_row.token):
+            matched_token = token_row
+            break
+
+    if matched_token is None:
+        raise HTTPException(400, "Verification token already used or expired")
+
+    # Step 3: Get user
+    from repository.user_repository import get_user_by_id
+    user = get_user_by_id(db, user_id)
+
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    if user.is_verified:
+        return {"message": "Email already verified", "user": user}
+
+    # Step 4: Mark token as used and verify user
+    matched_token.used = True
+    user.is_verified = True
+
+    try:
+        db.commit()
+        db.refresh(user)
+    except Exception:
+        db.rollback()
+        raise
+
+    return {"message": "Email verified successfully", "user": user}

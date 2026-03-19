@@ -16,6 +16,19 @@ app.include_router(auth_routes)
 app.include_router(user_routes)
 app.include_router(oauth_routes)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:63342",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "https://rearmost-unvoluntarily-miss.ngrok-free.dev",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(
     SessionMiddleware, #type: ignore

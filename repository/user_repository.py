@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from models.refreshToken import RefreshToken
 
 from models.user_model import User
+from models.email_verification_model import EmailVerificationToken
+from utils.hashing import hash_password
 
 
 # Repositories ---> Takes the data and talk to Database
@@ -56,3 +58,28 @@ def get_active_refresh_tokens_for_user(db: Session, user_id: int):
         )
         .all()
     )
+
+
+def save_verification_token_to_db(db, user_id: int, token: str):
+    """
+    Store verification token in DB for tracking/invalidation
+    (Hybrid approach: JWT carries expiry, DB tracks usage)
+    """
+
+
+    # Calculate expiry (24 hours from now)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    # Store hashed token for security
+    hashed_token = hash_password(token)
+
+    db_token = EmailVerificationToken(
+        token=hashed_token,
+        user_id=user_id,
+        expires_at=expires_at,
+        used=False
+    )
+    db.add(db_token)
+    db.commit()
+    db.refresh(db_token)
+    return db_token

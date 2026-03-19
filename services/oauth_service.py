@@ -18,24 +18,27 @@ def find_or_create_oauth_user(db: Session, email: str, provider: str, provider_i
     2. Match by email                   (user registered locally with same email → link account)
     3. Create new user
     """
-    # 1. Exact provider match
+
     user = get_user_by_provider(db, provider, provider_id)
     if user:
         return user
 
-    # 2. Email already exists (local account) → link the OAuth provider to it
+
     user = get_user_by_email(db, email)
+    # If user already exists
     if user:
         user.provider = provider
         user.provider_id = provider_id
+        user.is_verified = True
         db.commit()
         db.refresh(user)
         return user
 
-    # 3. Brand new user
+
+    # New User
     user = User(
         email=email,
-        password=None,       # OAuth users have no password
+        password=None,
         provider=provider,
         provider_id=provider_id,
     )

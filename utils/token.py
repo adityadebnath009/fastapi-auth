@@ -42,3 +42,5 @@ def create_refresh_token(data: dict):
     payload["exp"] = datetime.now(timezone.utc) + timedelta(days=7)
     payload["type"] = "refresh"
     return jwt.encode(payload, settings.refresh_secret_key, algorithm=ALGORITHM)
+
+

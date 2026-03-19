@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import lru_cache
 
 from pydantic import Field, field_validator
@@ -26,10 +28,10 @@ class Settings(BaseSettings):
     smtp_pass: str = Field(alias="SMTP_PASS")
     from_email: str = Field(alias="FROM_EMAIL")
     email_secret_key:str = Field(alias="EMAIL_SECRET_KEY")
-
+    backend_url: str = "http://localhost:8000"
     frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
     allowed_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000"],
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:63342","http://localhost:3000", "http://localhost:5173","http://localhost:8080","https://rearmost-unvoluntarily-miss.ngrok-free.dev"],
         alias="ALLOWED_ORIGINS",
     )
 
