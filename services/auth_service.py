@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 
-from authlib.jose import jwt
+from jose import jwt
 from fastapi import HTTPException, status
 
 from core.settings import settings

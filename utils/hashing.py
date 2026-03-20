@@ -7,6 +7,12 @@ def hash_password(password: str):
     return pwd_context.hash(password)
 
 
+from passlib.exc import UnknownHashError
+
 def verify_password(password: str, hashed_password: str):
-    return pwd_context.verify(password, hashed_password)
+    try:
+        return pwd_context.verify(password, hashed_password)
+    except UnknownHashError:
+        # Gracefully handle legacy or malformed hashes in the database
+        return False
 
