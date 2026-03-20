@@ -1,7 +1,7 @@
 {
-  "executionEnvironments": [
-    {
-      "root": "."
-    }
+  "venvPath": "/Users/adityadebnath/Projects/Playground/FastApi(CoreySchafer)",
+  "venv": ".venv",
+  "extraPaths": [
+    ".venv/lib/python3.12/site-packages"
   ]
 }
