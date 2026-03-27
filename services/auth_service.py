@@ -51,8 +51,9 @@ def login_user(db, email, password):
     access_token = create_access_token({"sub":str(user.id)})
     refresh_token = create_refresh_token({"sub" : str(user.id)})
 
-    hashed_refresh_token = hash_password(refresh_token)
-    save_refresh_token(db, user.id, hashed_refresh_token)
+
+
+    save_refresh_token(db, user.id, refresh_token)
 
     return {
         "access_token" : access_token,
@@ -96,8 +97,7 @@ def renew_access_token(db, refresh_token: str):
     new_access_token = create_access_token({"sub": str(user_id)})
     new_refresh_token = create_refresh_token({"sub": str(user_id)})
 
-    hashed_new_refresh_token = hash_password(new_refresh_token)
-    save_refresh_token(db, int(user_id), hashed_new_refresh_token)
+    save_refresh_token(db, int(user_id), new_refresh_token)
 
     return {
         "access_token": new_access_token,

@@ -1,13 +1,10 @@
-from fastapi import HTTPException
-from fastapi import Response
-from fastapi import APIRouter
-from fastapi.params import Depends, Cookie
+from fastapi import APIRouter, Cookie, HTTPException, Response
+from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from core import settings
 from database.dependencies import get_db
-from repository.user_repository import revoke_refresh_token, get_active_refresh_tokens_for_user, get_user_by_id, \
+from repository.user_repository import revoke_refresh_token, get_active_refresh_tokens_for_user, \
     save_verification_token_to_db, get_user_by_email
 from services.auth_service import register_user, login_user, renew_access_token, create_email_verification_token, \
     verify_email_token
@@ -18,6 +15,7 @@ from services.email_service import send_email
 from utils.hashing import verify_password
 from utils.token import decode_refresh_token
 from core.settings import settings
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -80,7 +78,7 @@ def login(response: Response ,form_data: OAuth2PasswordRequestForm = Depends(), 
 
 
 @router.post("/refresh")
-def refresh(response: Response, refresh_token:str = Cookie(default=None), db: Session = Depends(get_db)):
+def refresh(response: Response, refresh_token:str = Cookie(default=None,alias=settings.refresh_cookie_name ), db: Session = Depends(get_db)):
     # protected by refresh token validity inside refresh_access_token()
 
     if refresh_token is None:
@@ -103,7 +101,7 @@ def refresh(response: Response, refresh_token:str = Cookie(default=None), db: Se
 
 
 @router.post("/logout")
-def logout(response:Response ,refresh_token:str = Cookie(default=None),
+def logout(response:Response ,refresh_token:str = Cookie(default=None, alias=settings.refresh_cookie_name),
 
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)

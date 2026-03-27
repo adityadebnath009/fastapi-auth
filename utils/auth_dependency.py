@@ -15,30 +15,27 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # The primary consumer of this information is **FastAPI's auto-generated Swagger docs** at `/docs`:
 
 def get_current_user(
-        token:str =  Depends(oauth2_scheme),
+        token: str = Depends(oauth2_scheme),
         db: Session = Depends(get_db)
 ):
     payload = decode_token(token)
 
-
-    if payload is None:
+    if payload is None or payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail = "Invalid Token"
+            detail="Invalid Token"
         )
 
-
-    if payload.get("type")!="access" :
+    raw_user_id = payload.get("sub")
+    if raw_user_id is None:
         raise HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED,
-            detail = "Invalid Token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Token"
         )
 
-    user_id = int(payload.get("sub"))
-
-    print("USER ID:", user_id, type(user_id))  # ← and this
-
-    if user_id is None:
+    try:
+        user_id = int(raw_user_id)
+    except (TypeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Token"
@@ -53,7 +50,6 @@ def get_current_user(
         )
 
     return user
-
 
 
 

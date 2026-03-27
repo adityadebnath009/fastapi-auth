@@ -29,16 +29,18 @@ def get_user_by_id(db: Session, user_id: int):
 
 
 def save_refresh_token(db: Session, user_id: int, token: str):
-    refresh_token = RefreshToken(
-        token = token,
-        user_id = user_id,
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7),
-        revoked=False
+    hashed_token = hash_password(token)
 
+    refresh_token = RefreshToken(
+        token=hashed_token,
+        user_id=user_id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        revoked=False
     )
 
     db.add(refresh_token)
     db.commit()
+    db.refresh(refresh_token)
     return refresh_token
 
 
